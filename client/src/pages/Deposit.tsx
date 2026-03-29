@@ -3,8 +3,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
-import { Copy, CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
+import { Copy, CheckCircle, Clock, XCircle, AlertCircle, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QRCodeSVG as QRCode } from "qrcode.react";
 
 const TRC20_ADDRESS = "TC2qeGTSsyDbUKtjENRoZpkYgNFgv8dfti";
 const ERC20_ADDRESS = "0x88b54b1b94366500f84e3d11cc92bcb6c1c33af3";
@@ -20,6 +21,7 @@ export default function Deposit() {
   const [network, setNetwork] = useState<"TRC20" | "ERC20">("TRC20");
   const [txHash, setTxHash] = useState("");
   const [amount, setAmount] = useState("");
+  const [showQR, setShowQR] = useState(false);
 
   const { data: deposits, refetch } = trpc.wallet.getMyDeposits.useQuery(undefined, { enabled: isAuthenticated });
   const submitDeposit = trpc.wallet.submitDeposit.useMutation({
@@ -85,30 +87,54 @@ export default function Deposit() {
         </div>
       </div>
 
-      {/* Wallet Address */}
-      <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">عنوان المحفظة ({network})</p>
-          <span className={cn(
-            "text-xs px-2 py-0.5 rounded-full font-medium",
-            network === "TRC20" ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400"
-          )}>
-            {network === "TRC20" ? "TRON" : "Ethereum"}
-          </span>
+      {/* Wallet Address & QR */}
+      {!showQR ? (
+        <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold">عنوان المحفظة ({network})</p>
+            <span className={cn(
+              "text-xs px-2 py-0.5 rounded-full font-medium",
+              network === "TRC20" ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400"
+            )}>
+              {network === "TRC20" ? "TRON" : "Ethereum"}
+            </span>
+          </div>
+          <div className="bg-accent rounded-xl p-3 flex items-center gap-2">
+            <p className="flex-1 text-xs font-mono text-foreground break-all text-right">{walletAddress}</p>
+            <button
+              onClick={() => copyAddress(walletAddress)}
+              className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex-shrink-0"
+            >
+              <Copy size={16} />
+            </button>
+          </div>
+          <button
+            onClick={() => setShowQR(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/20 transition-colors"
+          >
+            <QrCode size={16} /> عرض الباركود
+          </button>
+          <p className="text-xs text-muted-foreground text-center">
+            ⚠️ أرسل فقط USDT على شبكة {network}
+          </p>
         </div>
-        <div className="bg-accent rounded-xl p-3 flex items-center gap-2">
-          <p className="flex-1 text-xs font-mono text-foreground break-all text-right">{walletAddress}</p>
+      ) : (
+        <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <button onClick={() => setShowQR(false)} className="text-muted-foreground hover:text-foreground text-sm font-medium">إغلاق</button>
+            <p className="font-semibold">باركود {network}</p>
+          </div>
+          <div className="flex justify-center bg-white p-4 rounded-xl">
+            <QRCode value={walletAddress} size={200} />
+          </div>
           <button
             onClick={() => copyAddress(walletAddress)}
-            className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex-shrink-0"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/20 transition-colors"
           >
-            <Copy size={16} />
+            <Copy size={16} /> نسخ العنوان
           </button>
         </div>
-        <p className="text-xs text-muted-foreground text-center">
-          ⚠️ أرسل فقط USDT على شبكة {network}
-        </p>
-      </div>
+      )}
 
       {/* Deposit Form */}
       <div className="bg-card rounded-2xl border border-border p-4 space-y-4">

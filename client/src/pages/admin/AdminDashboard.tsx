@@ -1,22 +1,37 @@
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import { Users, DollarSign, Bell, ArrowLeftRight, CheckCircle, Clock, ShieldCheck, LogOut } from "lucide-react";
+import { Users, DollarSign, Bell, ArrowLeftRight, CheckCircle, Clock, ShieldCheck, LogOut, Plus, Copy } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
 
 export default function AdminDashboard() {
   const { user, isAuthenticated, logout } = useAuth();
   const [, navigate] = useLocation();
-
-  useEffect(() => {
-    if (isAuthenticated && user?.role !== "admin") navigate("/");
-  }, [isAuthenticated, user]);
+  const [newCode, setNewCode] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const { data: members } = trpc.admin.getMembers.useQuery(undefined, { enabled: user?.role === "admin" });
   const { data: deposits } = trpc.admin.getAllDeposits.useQuery(undefined, { enabled: user?.role === "admin" });
   const { data: unreadCount } = trpc.admin.getUnreadCount.useQuery(undefined, { enabled: user?.role === "admin", refetchInterval: 30000 });
   const { data: txs } = trpc.admin.getAllTransactions.useQuery({ limit: 5 }, { enabled: user?.role === "admin" });
+  const { data: myInvitations, refetch: refetchInvitations } = trpc.invitations.myInvitations.useQuery(undefined, { enabled: user?.role === "admin" });
+
+  const createInvitation = trpc.invitations.create.useMutation({
+    onSuccess: () => {
+      toast.success("تم إنشاء كود الدعوة بنجاح!");
+      setNewCode("");
+      setShowCreateForm(false);
+      refetchInvitations();
+    },
+    onError: err => toast.error(err.message),
+  });
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast.success("تم نسخ الكود!");
+  };
 
   const totalMembers = members?.length ?? 0;
   const activeMembers = members?.filter(m => m.status === "active").length ?? 0;
@@ -99,6 +114,66 @@ export default function AdminDashboard() {
               <span className="text-muted-foreground text-sm">›</span>
             </button>
           ))}
+        </div>
+
+        {/* Invitations Management */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">أكواد الدعوة</h3>
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg gradient-gold text-background font-semibold hover:opacity-90 transition-opacity text-xs"
+            >
+              <Plus size={14} /> كود جديد
+            </button>
+          </div>
+
+          {showCreateForm && (
+            <div className="bg-card rounded-2xl border border-border p-3 mb-3 space-y-2">
+              <input
+                value={newCode}
+                onChange={e => setNewCode(e.target.value)}
+                placeholder="أدخل كود الدعوة"
+                className="w-full bg-accent border border-border rounded-lg py-2 px-3 text-foreground text-right placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors text-sm"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => createInvitation.mutate({ code: newCode })}
+                  disabled={createInvitation.isPending || !newCode}
+                  className="flex-1 gradient-gold text-background font-semibold py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 text-sm"
+                >
+                  {createInvitation.isPending ? "جاري..." : "إنشاء"}
+                </button>
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="flex-1 bg-card border border-border text-foreground font-semibold py-2 rounded-lg hover:bg-accent transition-colors text-sm"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          )}
+
+          {myInvitations && myInvitations.length > 0 ? (
+            <div className="space-y-2">
+              {myInvitations.map(inv => (
+                <div key={inv.id} className="flex items-center gap-2 bg-card rounded-lg p-2 border border-border">
+                  <div className="flex-1">
+                    <p className="font-mono font-semibold text-xs">{inv.code}</p>
+                    <p className="text-xs text-muted-foreground">{inv.isUsed ? "✓ مستخدم" : "○ متاح"}</p>
+                  </div>
+                  <button
+                    onClick={() => copyCode(inv.code)}
+                    className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-2 text-sm">لا توجد أكواد دعوة</p>
+          )}
         </div>
 
         {/* Recent Transactions */}

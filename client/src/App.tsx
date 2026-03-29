@@ -10,6 +10,7 @@ import Trade from "./pages/Trade";
 import Wallet from "./pages/Wallet";
 import Transactions from "./pages/Transactions";
 import Deposit from "./pages/Deposit";
+import Withdraw from "./pages/Withdraw";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminMembers from "./pages/admin/AdminMembers";
 import AdminTransactions from "./pages/admin/AdminTransactions";
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/wallet" component={Wallet} />
       <Route path="/transactions" component={Transactions} />
       <Route path="/deposit" component={Deposit} />
+      <Route path="/withdraw" component={Withdraw} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/members" component={AdminMembers} />
       <Route path="/admin/transactions" component={AdminTransactions} />

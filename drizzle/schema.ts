@@ -95,3 +95,32 @@ export const notifications = mysqlTable("notifications", {
 });
 
 export type Notification = typeof notifications.$inferSelect;
+
+// Invitation codes for new member registration
+export const invitations = mysqlTable("invitations", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  createdBy: int("createdBy").notNull(), // admin who created it
+  usedBy: int("usedBy"), // user who used it
+  isUsed: boolean("isUsed").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  usedAt: timestamp("usedAt"),
+});
+
+export type Invitation = typeof invitations.$inferSelect;
+
+// Withdrawal requests (real money out)
+export const withdrawals = mysqlTable("withdrawals", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  network: mysqlEnum("network", ["TRC20", "ERC20"]).notNull(),
+  address: varchar("address", { length: 128 }).notNull(),
+  amount: decimal("amount", { precision: 20, scale: 8 }).notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "completed"]).default("pending").notNull(),
+  txHash: varchar("txHash", { length: 128 }),
+  adminNote: text("adminNote"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Withdrawal = typeof withdrawals.$inferSelect;

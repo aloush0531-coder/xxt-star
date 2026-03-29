@@ -3,16 +3,20 @@ import { drizzle } from "drizzle-orm/mysql2";
 import {
   deposits,
   holdings,
+  invitations,
   notifications,
   transactions,
   users,
   wallets,
+  withdrawals,
   type Deposit,
   type Holding,
   type InsertUser,
+  type Invitation,
   type Notification,
   type Transaction,
   type Wallet,
+  type Withdrawal,
 } from "../drizzle/schema";
 
 import { ENV } from "./_core/env";
@@ -293,4 +297,77 @@ export async function getUnreadNotificationCount(): Promise<number> {
     .from(notifications)
     .where(eq(notifications.isRead, false));
   return Number(result[0]?.count ?? 0);
+}
+
+// ─── Invitations ─────────────────────────────────────────────────────────────
+
+export async function createInvitation(code: string, createdBy: number): Promise<Invitation | null> {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(invitations).values({ code, createdBy });
+  const inv = await db.select().from(invitations).where(eq(invitations.code, code)).limit(1);
+  return inv.length > 0 ? inv[0] : null;
+}
+
+export async function validateInvitationCode(code: string): Promise<Invitation | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(invitations).where(eq(invitations.code, code)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function useInvitationCode(code: string, userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const inv = await validateInvitationCode(code);
+  if (!inv || inv.isUsed) return false;
+  await db.update(invitations).set({ isUsed: true, usedBy: userId, usedAt: new Date() }).where(eq(invitations.code, code));
+  return true;
+}
+
+export async function getInvitationsByAdmin(adminId: number): Promise<Invitation[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(invitations).where(eq(invitations.createdBy, adminId)).orderBy(desc(invitations.createdAt));
+}
+
+// ─── Withdrawals ─────────────────────────────────────────────────────────────
+
+export async function createWithdrawal(data: {
+  userId: number;
+  network: "TRC20" | "ERC20";
+  address: string;
+  amount: string;
+}): Promise<Withdrawal | null> {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(withdrawals).values({
+    userId: data.userId,
+    network: data.network,
+    address: data.address,
+    amount: data.amount,
+  });
+  const w = await db.select().from(withdrawals).where(and(eq(withdrawals.userId, data.userId), eq(withdrawals.address, data.address))).orderBy(desc(withdrawals.createdAt)).limit(1);
+  return w.length > 0 ? w[0] : null;
+}
+
+export async function getWithdrawalsByUserId(userId: number): Promise<Withdrawal[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(withdrawals).where(eq(withdrawals.userId, userId)).orderBy(desc(withdrawals.createdAt));
+}
+
+export async function getAllWithdrawals(limit = 100): Promise<Withdrawal[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(withdrawals).orderBy(desc(withdrawals.createdAt)).limit(limit);
+}
+
+export async function updateWithdrawalStatus(withdrawalId: number, status: "pending" | "approved" | "rejected" | "completed", txHash?: string, adminNote?: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const updates: any = { status };
+  if (txHash) updates.txHash = txHash;
+  if (adminNote) updates.adminNote = adminNote;
+  await db.update(withdrawals).set(updates).where(eq(withdrawals.id, withdrawalId));
 }

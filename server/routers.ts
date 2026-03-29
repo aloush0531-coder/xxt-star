@@ -24,9 +24,17 @@ import {
   updateUserStatus,
   upsertHolding,
   getDb,
+  createInvitation,
+  validateInvitationCode,
+  useInvitationCode,
+  getInvitationsByAdmin,
+  createWithdrawal,
+  getWithdrawalsByUserId,
+  getAllWithdrawals,
+  updateWithdrawalStatus,
 } from "./db";
 import { eq } from "drizzle-orm";
-import { deposits, users, wallets } from "../drizzle/schema";
+import { deposits, users, wallets, withdrawals } from "../drizzle/schema";
 
 // Admin middleware
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -277,6 +285,66 @@ const adminRouter = router({
 });
 
 // ─── App Router ───────────────────────────────────────────────────────────────
+// ─── Invitations Router ──────────────────────────────────────────────────────
+const invitationsRouter = router({
+  create: adminProcedure.input(z.object({ code: z.string().min(4).max(32) })).mutation(async ({ input, ctx }) => {
+    const inv = await createInvitation(input.code, ctx.user.id);
+    if (!inv) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    return inv;
+  }),
+  validate: publicProcedure.input(z.object({ code: z.string() })).query(async ({ input }) => {
+    const inv = await validateInvitationCode(input.code);
+    return { valid: inv !== null && !inv.isUsed };
+  }),
+  myInvitations: adminProcedure.query(async ({ ctx }) => {
+    return getInvitationsByAdmin(ctx.user.id);
+  }),
+});
+
+// ─── Withdrawals Router ──────────────────────────────────────────────────────
+const withdrawalsRouter = router({
+  create: protectedProcedure
+    .input(z.object({ network: z.enum(["TRC20", "ERC20"]), address: z.string(), amount: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const wallet = await getWalletByUserId(ctx.user.id);
+      if (!wallet) throw new TRPCError({ code: "NOT_FOUND", message: "Wallet not found" });
+      const balance = parseFloat(wallet.usdtBalance);
+      const amount = parseFloat(input.amount);
+      if (amount <= 0 || amount > balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid withdrawal amount" });
+      const w = await createWithdrawal({ userId: ctx.user.id, network: input.network, address: input.address, amount: input.amount });
+      if (!w) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      await createNotification({ type: "system", title: "طلب سحب جديد", message: `طلب سحب بقيمة $${amount} ${input.network}` });
+      return w;
+    }),
+  myWithdrawals: protectedProcedure.query(async ({ ctx }) => {
+    return getWithdrawalsByUserId(ctx.user.id);
+  }),
+  allWithdrawals: adminProcedure.query(async () => {
+    return getAllWithdrawals();
+  }),
+  approve: adminProcedure
+    .input(z.object({ withdrawalId: z.number(), txHash: z.string().optional(), adminNote: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const w = await db.select().from(withdrawals).where(eq(withdrawals.id, input.withdrawalId)).limit(1);
+      if (!w[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      await updateWithdrawalStatus(input.withdrawalId, "approved", input.txHash, input.adminNote);
+      return { success: true };
+    }),
+  reject: adminProcedure
+    .input(z.object({ withdrawalId: z.number(), adminNote: z.string().optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const w = await db.select().from(withdrawals).where(eq(withdrawals.id, input.withdrawalId)).limit(1);
+      if (!w[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      await updateWithdrawalStatus(input.withdrawalId, "rejected", undefined, input.adminNote);
+      await adjustWalletBalance(w[0].userId, parseFloat(w[0].amount));
+      return { success: true };
+    }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -291,6 +359,8 @@ export const appRouter = router({
   wallet: walletRouter,
   trading: tradingRouter,
   admin: adminRouter,
+  invitations: invitationsRouter,
+  withdrawals: withdrawalsRouter,
 });
 
 export type AppRouter = typeof appRouter;

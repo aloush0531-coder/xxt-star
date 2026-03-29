@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import { Home, BarChart2, TrendingUp, Wallet, User, ShieldCheck } from "lucide-react";
+import { Home, BarChart2, TrendingUp, Wallet, User, ShieldCheck, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
 
@@ -13,6 +13,7 @@ const navItems = [
   { path: "/markets", label: "الأسواق", icon: BarChart2 },
   { path: "/trade", label: "تداول", icon: TrendingUp },
   { path: "/wallet", label: "محفظتي", icon: Wallet },
+  { path: "/withdraw", label: "سحب", icon: Send },
 ];
 
 export default function AppLayout({ children }: AppLayoutProps) {
