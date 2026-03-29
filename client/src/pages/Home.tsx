@@ -40,7 +40,7 @@ export default function Home() {
             <div>
               <p className="text-sm font-medium opacity-80">مرحباً، {user?.name ?? "مستخدم"}</p>
               <p className="text-2xl font-bold mt-1">${balance.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <p className="text-xs opacity-70 mt-0.5">رصيد USDT الوهمي</p>
+              <p className="text-xs opacity-70 mt-0.5">رصيد USDT</p>
             </div>
             <div className="bg-background/20 rounded-xl p-2.5">
               <Wallet size={24} />
@@ -73,7 +73,7 @@ export default function Home() {
             <Star size={28} className="text-background" />
           </div>
           <h2 className="text-xl font-bold">مرحباً في xxt Star</h2>
-          <p className="text-muted-foreground text-sm">منصة التداول الوهمي الأكثر احترافية</p>
+          <p className="text-muted-foreground text-sm">منصة التداول الأكثر احترافية</p>
           <a
             href={getLoginUrl()}
             className="block w-full gradient-gold text-background font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity"
