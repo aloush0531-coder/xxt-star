@@ -1,9 +1,9 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { ArrowRight, Bell, Users, TrendingUp, DollarSign, Settings, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const typeConfig = {
   new_member: { label: "عضو جديد", icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
