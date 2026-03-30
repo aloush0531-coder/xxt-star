@@ -378,7 +378,13 @@ const withdrawalsRouter = router({
       if (amount <= 0 || amount > balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid withdrawal amount" });
       const w = await createWithdrawal({ userId: ctx.user.id, network: input.network, address: input.address, amount: input.amount });
       if (!w) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      await createNotification({ type: "system", title: "طلب سحب جديد", message: `طلب سحب بقيمة $${amount} ${input.network}` });
+      await createNotification({
+        type: "withdrawal_request",
+        title: "طلب سحب جديد",
+        message: `${ctx.user.name ?? ctx.user.email} طلب سحب بقيمة $${amount} عبر ${input.network}`,
+        withdrawalId: w.id,
+        actionStatus: "pending",
+      });
       return w;
     }),
   myWithdrawals: protectedProcedure.query(async ({ ctx }) => {

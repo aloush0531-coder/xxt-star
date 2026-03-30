@@ -266,9 +266,11 @@ export async function updateDepositStatus(
 
 export async function createNotification(data: {
   userId?: number;
-  type: "new_member" | "large_trade" | "deposit_request" | "system";
+  type: "new_member" | "large_trade" | "deposit_request" | "withdrawal_request" | "system";
   title: string;
   message: string;
+  withdrawalId?: number;
+  actionStatus?: "pending" | "approved" | "rejected";
 }): Promise<void> {
   const db = await getDb();
   if (!db) return;
@@ -277,6 +279,8 @@ export async function createNotification(data: {
     type: data.type,
     title: data.title,
     message: data.message,
+    withdrawalId: data.withdrawalId,
+    actionStatus: data.actionStatus,
   });
 }
 
