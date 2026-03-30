@@ -4,6 +4,7 @@ import {
   deposits,
   holdings,
   invitations,
+  miningRewards,
   notifications,
   transactions,
   users,
@@ -13,6 +14,7 @@ import {
   type Holding,
   type InsertUser,
   type Invitation,
+  type MiningReward,
   type Notification,
   type Transaction,
   type Wallet,
@@ -370,4 +372,92 @@ export async function updateWithdrawalStatus(withdrawalId: number, status: "pend
   if (txHash) updates.txHash = txHash;
   if (adminNote) updates.adminNote = adminNote;
   await db.update(withdrawals).set(updates).where(eq(withdrawals.id, withdrawalId));
+}
+
+
+// ─── Mining Rewards ──────────────────────────────────────────────────────────
+export async function getTodayMiningReward(userId: number): Promise<MiningReward | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const result = await db.select().from(miningRewards).where(and(eq(miningRewards.userId, userId), eq(miningRewards.date, today))).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createTodayMiningReward(userId: number): Promise<MiningReward | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const today = new Date().toISOString().split('T')[0];
+  const existing = await getTodayMiningReward(userId);
+  if (existing) return existing;
+  
+  await db.insert(miningRewards).values({
+    userId,
+    date: today,
+    amount: "80",
+    claimed: false,
+  });
+  return getTodayMiningReward(userId);
+}
+
+export async function claimMiningReward(userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const reward = await getTodayMiningReward(userId);
+  if (!reward || reward.claimed) return false;
+  
+  const amount = parseFloat(reward.amount);
+  await adjustWalletBalance(userId, amount);
+  await db.update(miningRewards).set({ claimed: true, claimedAt: new Date() }).where(eq(miningRewards.id, reward.id));
+  await createTransaction({
+    userId,
+    type: "admin_credit",
+    amount,
+    total: amount,
+    note: "مكافأة التعدين اليومي",
+  });
+  return true;
+}
+
+export async function getMiningProgress(userId: number): Promise<{ progress: number; claimed: boolean; nextClaimTime: string }> {
+  const reward = await getTodayMiningReward(userId);
+  if (!reward) {
+    await createTodayMiningReward(userId);
+    return { progress: 0, claimed: false, nextClaimTime: getNextClaimTime() };
+  }
+  
+  const now = new Date();
+  const turkeyTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }));
+  const targetTime = new Date(turkeyTime);
+  targetTime.setHours(22, 0, 0, 0); // 10:00 PM
+  
+  if (turkeyTime.getHours() >= 22) {
+    targetTime.setDate(targetTime.getDate() + 1);
+  }
+  
+  const startTime = new Date(turkeyTime);
+  startTime.setHours(0, 0, 0, 0);
+  
+  const totalMs = targetTime.getTime() - startTime.getTime();
+  const elapsedMs = turkeyTime.getTime() - startTime.getTime();
+  const progress = Math.min(100, Math.round((elapsedMs / totalMs) * 100));
+  
+  return {
+    progress,
+    claimed: reward.claimed,
+    nextClaimTime: targetTime.toISOString(),
+  };
+}
+
+function getNextClaimTime(): string {
+  const now = new Date();
+  const turkeyTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Istanbul' }));
+  const targetTime = new Date(turkeyTime);
+  targetTime.setHours(22, 0, 0, 0);
+  
+  if (turkeyTime.getHours() >= 22) {
+    targetTime.setDate(targetTime.getDate() + 1);
+  }
+  
+  return targetTime.toISOString();
 }

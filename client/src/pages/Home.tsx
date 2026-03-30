@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, ArrowUpRight, Wallet, BarChart2, RefreshCw, S
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
 import { Skeleton } from "@/components/ui/skeleton";
+import MiningBar from "@/components/MiningBar";
 
 function PriceChangeTag({ value }: { value: number }) {
   const isPositive = value >= 0;
@@ -80,6 +81,13 @@ export default function Home() {
           >
             ابدأ التداول الآن
           </a>
+        </div>
+      )}
+
+      {/* Mining Bar */}
+      {isAuthenticated && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <MiningBar />
         </div>
       )}
 

@@ -126,3 +126,16 @@ export const withdrawals = mysqlTable("withdrawals", {
 });
 
 export type Withdrawal = typeof withdrawals.$inferSelect;
+
+// Daily mining rewards
+export const miningRewards = mysqlTable("miningRewards", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+  amount: decimal("amount", { precision: 20, scale: 8 }).default("80").notNull(),
+  claimed: boolean("claimed").default(false).notNull(),
+  claimedAt: timestamp("claimedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MiningReward = typeof miningRewards.$inferSelect;

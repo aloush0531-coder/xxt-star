@@ -32,6 +32,8 @@ import {
   getWithdrawalsByUserId,
   getAllWithdrawals,
   updateWithdrawalStatus,
+  getMiningProgress,
+  claimMiningReward,
 } from "./db";
 import { eq } from "drizzle-orm";
 import { deposits, users, wallets, withdrawals } from "../drizzle/schema";
@@ -117,6 +119,23 @@ const walletRouter = router({
       });
       return { success: true };
     }),
+
+  getMiningProgress: protectedProcedure.query(async ({ ctx }) => {
+    return getMiningProgress(ctx.user.id);
+  }),
+
+  claimMining: protectedProcedure.mutation(async ({ ctx }) => {
+    const success = await claimMiningReward(ctx.user.id);
+    if (success) {
+      await createNotification({
+        userId: ctx.user.id,
+        type: "system",
+        title: "تم استلام مكافأة التعدين",
+        message: "تم إضافة $80 USDT إلى حسابك من مكافأة التعدين اليومي",
+      });
+    }
+    return { success };
+  }),
 });
 
 // ─── Trading Router ───────────────────────────────────────────────────────────
