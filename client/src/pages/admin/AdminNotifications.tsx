@@ -1,14 +1,15 @@
-import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { ArrowRight, Bell, Users, TrendingUp, DollarSign, Settings } from "lucide-react";
+import { ArrowRight, Bell, Users, TrendingUp, DollarSign, Settings, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { trpc } from "@/lib/trpc";
 
 const typeConfig = {
   new_member: { label: "عضو جديد", icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
   large_trade: { label: "صفقة كبيرة", icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
   deposit_request: { label: "طلب إيداع", icon: DollarSign, color: "text-yellow-400", bg: "bg-yellow-400/10" },
+  withdrawal_request: { label: "طلب سحب", icon: DollarSign, color: "text-danger", bg: "bg-danger/10" },
   system: { label: "نظام", icon: Settings, color: "text-muted-foreground", bg: "bg-muted" },
 };
 
@@ -19,7 +20,23 @@ export default function AdminNotifications() {
 
   const markRead = trpc.admin.markNotificationRead.useMutation({
     onSuccess: () => refetch(),
-    onError: err => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const approveWithdrawal = trpc.admin.approveWithdrawal.useMutation({
+    onSuccess: () => {
+      toast.success("تم قبول طلب السحب");
+      refetch();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const rejectWithdrawal = trpc.admin.rejectWithdrawal.useMutation({
+    onSuccess: () => {
+      toast.success("تم رفض طلب السحب");
+      refetch();
+    },
+    onError: (err: any) => toast.error(err.message),
   });
 
   const unread = notifications?.filter(n => !n.isRead).length ?? 0;
@@ -41,7 +58,7 @@ export default function AdminNotifications() {
       <div className="max-w-4xl mx-auto px-4 py-4 space-y-2">
         {notifications && notifications.length > 0 ? (
           notifications.map(n => {
-            const config = typeConfig[n.type] ?? typeConfig.system;
+            const config = typeConfig[n.type as keyof typeof typeConfig] ?? typeConfig.system;
             const Icon = config.icon;
             return (
               <button
@@ -66,6 +83,32 @@ export default function AdminNotifications() {
                   </div>
                   <p className="font-semibold text-sm mt-0.5">{n.title}</p>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
+                  {n.type === "withdrawal_request" && n.actionStatus === "pending" && n.withdrawalId && (
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          approveWithdrawal.mutate({ withdrawalId: n.withdrawalId! });
+                        }}
+                        disabled={approveWithdrawal.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs font-semibold hover:bg-success/20 transition-colors disabled:opacity-50"
+                      >
+                        <Check size={14} />
+                        قبول
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          rejectWithdrawal.mutate({ withdrawalId: n.withdrawalId! });
+                        }}
+                        disabled={rejectWithdrawal.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-semibold hover:bg-danger/20 transition-colors disabled:opacity-50"
+                      >
+                        <X size={14} />
+                        رفض
+                      </button>
+                    </div>
+                  )}
                 </div>
               </button>
             );

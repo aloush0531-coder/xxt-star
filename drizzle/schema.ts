@@ -87,10 +87,12 @@ export type Deposit = typeof deposits.$inferSelect;
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId"),
-  type: mysqlEnum("type", ["new_member", "large_trade", "deposit_request", "system"]).notNull(),
+  type: mysqlEnum("type", ["new_member", "large_trade", "deposit_request", "withdrawal_request", "system"]).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   message: text("message").notNull(),
   isRead: boolean("isRead").default(false).notNull(),
+  withdrawalId: int("withdrawalId"),
+  actionStatus: mysqlEnum("actionStatus", ["pending", "approved", "rejected"]).default("pending"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

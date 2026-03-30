@@ -282,6 +282,52 @@ const adminRouter = router({
   getUnreadCount: adminProcedure.query(async () => {
     return getUnreadNotificationCount();
   }),
+
+  approveWithdrawal: adminProcedure
+    .input(z.object({ withdrawalId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const w = await db.select().from(withdrawals).where(eq(withdrawals.id, input.withdrawalId)).limit(1);
+      if (!w[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      if (w[0].status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "الطلب ليس في حالة انتظار" });
+      await updateWithdrawalStatus(input.withdrawalId, "approved");
+      const amount = parseFloat(w[0].amount);
+      await adjustWalletBalance(w[0].userId, -amount);
+      await createTransaction({
+        userId: w[0].userId,
+        type: "withdraw",
+        amount,
+        total: amount,
+        note: `سحب معتمد عبر ${w[0].network}`,
+      });
+      await createNotification({
+        userId: w[0].userId,
+        type: "system",
+        title: "طلب السحب معتمد",
+        message: `تم اعتماد طلب السحب بقيمة $${amount} إلى ${w[0].network}`,
+      });
+      return { success: true };
+    }),
+
+  rejectWithdrawal: adminProcedure
+    .input(z.object({ withdrawalId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const w = await db.select().from(withdrawals).where(eq(withdrawals.id, input.withdrawalId)).limit(1);
+      if (!w[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      if (w[0].status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "الطلب ليس في حالة انتظار" });
+      await updateWithdrawalStatus(input.withdrawalId, "rejected");
+      const amount = parseFloat(w[0].amount);
+      await createNotification({
+        userId: w[0].userId,
+        type: "system",
+        title: "طلب السحب مرفوض",
+        message: `تم رفض طلب السحب بقيمة $${amount}. الرجاء التواصل مع الدعم للمزيد من المعلومات`,
+      });
+      return { success: true };
+    }),
 });
 
 // ─── App Router ───────────────────────────────────────────────────────────────
