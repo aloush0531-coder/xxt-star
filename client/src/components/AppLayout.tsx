@@ -1,8 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
-import { Home, BarChart2, TrendingUp, Wallet, User, ShieldCheck, Send } from "lucide-react";
+import { Home, BarChart2, TrendingUp, Wallet, User, ShieldCheck, Send, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ const navItems = [
 export default function AppLayout({ children }: AppLayoutProps) {
   const [location, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const { isInstallable, isInstalled, install } = useInstallPrompt();
 
   const isAdminPage = location.startsWith("/admin");
 
@@ -37,6 +39,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <span className="font-bold text-primary text-lg tracking-wide">xxt Star</span>
         </div>
         <div className="flex items-center gap-2">
+          {isInstallable && !isInstalled && (
+            <button
+              onClick={install}
+              className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors"
+              title="تحميل التطبيق"
+            >
+              <Download size={18} />
+            </button>
+          )}
           {user?.role === "admin" && (
             <button
               onClick={() => navigate("/admin")}

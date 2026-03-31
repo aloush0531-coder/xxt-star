@@ -1,11 +1,12 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { TrendingUp, TrendingDown, ArrowUpRight, Wallet, BarChart2, RefreshCw, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUpRight, Wallet, BarChart2, RefreshCw, Star, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
 import { Skeleton } from "@/components/ui/skeleton";
 import MiningBar from "@/components/MiningBar";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 
 function PriceChangeTag({ value }: { value: number }) {
   const isPositive = value >= 0;
@@ -22,6 +23,7 @@ function PriceChangeTag({ value }: { value: number }) {
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const { isInstallable, isInstalled, isIOS, install } = useInstallPrompt();
   const { data: prices, isLoading, refetch } = trpc.market.getPrices.useQuery(undefined, {
     refetchInterval: 30000,
   });
@@ -34,6 +36,25 @@ export default function Home() {
 
   return (
     <div className="px-4 pt-4 pb-2 space-y-5">
+      {/* Install App Banner */}
+      {(isInstallable || isIOS) && !isInstalled && (
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-4 text-white shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <p className="font-semibold text-sm">تحميل التطبيق</p>
+              <p className="text-xs opacity-90 mt-1">ثبّت التطبيق على جهازك للوصول السريع</p>
+            </div>
+            <button
+              onClick={install}
+              className="bg-white text-blue-600 rounded-lg px-4 py-2 font-semibold text-sm hover:bg-blue-50 transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0"
+            >
+              <Download size={16} />
+              تحميل
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Welcome Banner */}
       {isAuthenticated ? (
         <div className="gradient-gold rounded-2xl p-5 text-background shadow-lg">
