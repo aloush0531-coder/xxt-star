@@ -3,18 +3,17 @@ import { useEffect, useState } from 'react';
 
 export function DownloadButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstallable, setIsInstallable] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setIsInstallable(true);
     };
 
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
-      setIsInstallable(false);
+      setIsInstalled(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -27,23 +26,18 @@ export function DownloadButton() {
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
-      return;
-    }
-
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-      setIsInstallable(false);
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+        setIsInstalled(true);
+      }
     }
   };
 
-  if (!isInstallable) {
-    return null;
-  }
-
+  // Always show the button
   return (
     <button
       onClick={handleInstall}
