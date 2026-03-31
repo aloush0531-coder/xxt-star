@@ -1,9 +1,11 @@
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { ArrowRight, Bell, Users, TrendingUp, DollarSign, Settings, Check, X } from "lucide-react";
+import { ArrowRight, Bell, Users, TrendingUp, DollarSign, Settings, Check, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { WithdrawalReceipt } from "@/components/WithdrawalReceipt";
+import { useState } from "react";
 
 const typeConfig = {
   new_member: { label: "عضو جديد", icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
@@ -16,7 +18,9 @@ const typeConfig = {
 export default function AdminNotifications() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const [expandedWithdrawal, setExpandedWithdrawal] = useState<number | null>(null);
   const { data: notifications, refetch } = trpc.admin.getNotifications.useQuery(undefined, { enabled: user?.role === "admin" });
+  const { data: allWithdrawals } = trpc.withdrawals.allWithdrawals.useQuery({}, { enabled: user?.role === "admin" });
 
   const markRead = trpc.admin.markNotificationRead.useMutation({
     onSuccess: () => refetch(),
@@ -60,57 +64,75 @@ export default function AdminNotifications() {
           notifications.map(n => {
             const config = typeConfig[n.type as keyof typeof typeConfig] ?? typeConfig.system;
             const Icon = config.icon;
+            const isWithdrawalExpanded = expandedWithdrawal === n.withdrawalId;
+            const withdrawal = n.withdrawalId && allWithdrawals?.find((w: any) => w.id === n.withdrawalId);
             return (
-              <button
-                key={n.id}
-                onClick={() => !n.isRead && markRead.mutate({ id: n.id })}
-                className={cn(
-                  "w-full flex items-start gap-3 rounded-2xl p-4 border text-right transition-all",
-                  n.isRead
-                    ? "bg-card border-border opacity-60"
-                    : "bg-card border-primary/30 shadow-sm"
-                )}
-              >
-                <div className={cn("p-2.5 rounded-xl flex-shrink-0 mt-0.5", config.bg)}>
-                  <Icon size={16} className={config.color} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(n.createdAt).toLocaleDateString("ar-SA")} {new Date(n.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                    {!n.isRead && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
-                  </div>
-                  <p className="font-semibold text-sm mt-0.5">{n.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
-                  {n.type === "withdrawal_request" && n.actionStatus === "pending" && n.withdrawalId && (
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          approveWithdrawal.mutate({ withdrawalId: n.withdrawalId! });
-                        }}
-                        disabled={approveWithdrawal.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs font-semibold hover:bg-success/20 transition-colors disabled:opacity-50"
-                      >
-                        <Check size={14} />
-                        قبول
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          rejectWithdrawal.mutate({ withdrawalId: n.withdrawalId! });
-                        }}
-                        disabled={rejectWithdrawal.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-semibold hover:bg-danger/20 transition-colors disabled:opacity-50"
-                      >
-                        <X size={14} />
-                        رفض
-                      </button>
-                    </div>
+              <div key={n.id}>
+                <button
+                  onClick={() => {
+                    if (!n.isRead) markRead.mutate({ id: n.id });
+                    if (n.type === "withdrawal_request" && n.withdrawalId) {
+                      setExpandedWithdrawal(isWithdrawalExpanded ? null : (n.withdrawalId as number));
+                    }
+                  }}
+                  className={cn(
+                    "w-full flex items-start gap-3 rounded-2xl p-4 border text-right transition-all",
+                    n.isRead
+                      ? "bg-card border-border opacity-60"
+                      : "bg-card border-primary/30 shadow-sm"
                   )}
-                </div>
-              </button>
+                >
+                  <div className={cn("p-2.5 rounded-xl flex-shrink-0 mt-0.5", config.bg)}>
+                    <Icon size={16} className={config.color} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(n.createdAt).toLocaleDateString("ar-SA")} {new Date(n.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {!n.isRead && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
+                        {n.type === "withdrawal_request" && n.withdrawalId && (
+                          <ChevronDown size={16} className={cn("transition-transform", isWithdrawalExpanded && "rotate-180")} />
+                        )}
+                      </div>
+                    </div>
+                    <p className="font-semibold text-sm mt-0.5">{n.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
+                    {n.type === "withdrawal_request" && n.actionStatus === "pending" && n.withdrawalId && (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            approveWithdrawal.mutate({ withdrawalId: n.withdrawalId! });
+                          }}
+                          disabled={approveWithdrawal.isPending}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 text-success text-xs font-semibold hover:bg-success/20 transition-colors disabled:opacity-50"
+                        >
+                          <Check size={14} />
+                          قبول
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            rejectWithdrawal.mutate({ withdrawalId: n.withdrawalId! });
+                          }}
+                          disabled={rejectWithdrawal.isPending}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-danger/10 text-danger text-xs font-semibold hover:bg-danger/20 transition-colors disabled:opacity-50"
+                        >
+                          <X size={14} />
+                          رفض
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </button>
+                {isWithdrawalExpanded && withdrawal && user && (
+                  <div className="mt-3 px-4">
+                    <WithdrawalReceipt withdrawal={withdrawal} userInfo={{ name: user.name, email: user.email }} />
+                  </div>
+                )}
+              </div>
             );
           })
         ) : (
