@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xxt-star-v1';
+const CACHE_NAME = 'xxt-star-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -54,6 +54,31 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first strategy for navigation requests
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache successful responses
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache for navigation if offline
+          return caches.match(event.request).then((response) => {
+            return response || caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first strategy for other requests
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
@@ -82,4 +107,5 @@ self.addEventListener('fetch', (event) => {
         });
     })
   );
+
 });
