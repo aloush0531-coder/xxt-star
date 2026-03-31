@@ -1,0 +1,1 @@
+ALTER TABLE `withdrawals` ADD `fee` decimal(20,8) DEFAULT '0' NOT NULL;

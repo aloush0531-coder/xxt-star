@@ -36,6 +36,13 @@
       "when": 1774887715506,
       "tag": "0004_pretty_silver_sable",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1774947817186,
+      "tag": "0005_faithful_zzzax",
+      "breakpoints": true
     }
   ]
 }

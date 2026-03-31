@@ -390,17 +390,69 @@ const withdrawalsRouter = router({
   myWithdrawals: protectedProcedure.query(async ({ ctx }) => {
     return getWithdrawalsByUserId(ctx.user.id);
   }),
-  allWithdrawals: adminProcedure.query(async () => {
-    return getAllWithdrawals();
-  }),
+  allWithdrawals: adminProcedure
+    .input(z.object({ status: z.enum(["pending", "approved", "rejected", "completed"]).optional() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return [];
+      const allWithdrawals = await getAllWithdrawals(100);
+      const allUsers = await db.select().from(users);
+      const filtered = input.status ? allWithdrawals.filter(w => w.status === input.status) : allWithdrawals;
+      return filtered.map(w => {
+        const u = allUsers.find(u => u.id === w.userId);
+        return {
+          ...w,
+          userName: u?.name ?? u?.email ?? "مجهول",
+          netAmount: parseFloat(w.amount) - parseFloat(w.fee || "0"),
+        };
+      });
+    }),
+
+  getDetails: adminProcedure
+    .input(z.object({ withdrawalId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const w = await db.select().from(withdrawals).where(eq(withdrawals.id, input.withdrawalId)).limit(1);
+      if (!w[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      const u = await db.select().from(users).where(eq(users.id, w[0].userId)).limit(1);
+      return {
+        ...w[0],
+        userName: u[0]?.name ?? u[0]?.email ?? "مجهول",
+        netAmount: parseFloat(w[0].amount) - parseFloat(w[0].fee || "0"),
+      };
+    }),
   approve: adminProcedure
-    .input(z.object({ withdrawalId: z.number(), txHash: z.string().optional(), adminNote: z.string().optional() }))
+    .input(z.object({ withdrawalId: z.number(), fee: z.number().optional(), txHash: z.string().optional(), adminNote: z.string().optional() }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const w = await db.select().from(withdrawals).where(eq(withdrawals.id, input.withdrawalId)).limit(1);
       if (!w[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      if (w[0].status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "الطلب ليس في حالة انتظار" });
+      
+      const fee = input.fee ?? 0;
+      const amount = parseFloat(w[0].amount);
+      
       await updateWithdrawalStatus(input.withdrawalId, "approved", input.txHash, input.adminNote);
+      if (fee > 0) {
+        await db.update(withdrawals).set({ fee: String(fee) }).where(eq(withdrawals.id, input.withdrawalId));
+      }
+      
+      await adjustWalletBalance(w[0].userId, -(amount + fee));
+      await createTransaction({
+        userId: w[0].userId,
+        type: "withdraw",
+        amount: amount + fee,
+        total: amount + fee,
+        note: `سحب معتمد عبر ${w[0].network}${fee > 0 ? ` (رسوم: $${fee})` : ""}`,
+      });
+      await createNotification({
+        userId: w[0].userId,
+        type: "system",
+        title: "طلب السحب معتمد",
+        message: `تم اعتماد طلب السحب بقيمة $${amount}${fee > 0 ? ` (رسوم: $${fee})` : ""} إلى ${w[0].network}`,
+      });
       return { success: true };
     }),
   reject: adminProcedure
@@ -410,8 +462,16 @@ const withdrawalsRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       const w = await db.select().from(withdrawals).where(eq(withdrawals.id, input.withdrawalId)).limit(1);
       if (!w[0]) throw new TRPCError({ code: "NOT_FOUND" });
+      if (w[0].status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "الطلب ليس في حالة انتظار" });
+      
       await updateWithdrawalStatus(input.withdrawalId, "rejected", undefined, input.adminNote);
-      await adjustWalletBalance(w[0].userId, parseFloat(w[0].amount));
+      const amount = parseFloat(w[0].amount);
+      await createNotification({
+        userId: w[0].userId,
+        type: "system",
+        title: "طلب السحب مرفوض",
+        message: `تم رفض طلب السحب بقيمة $${amount}${input.adminNote ? `. السبب: ${input.adminNote}` : ". الرجاء التواصل مع الدعم للمزيد من المعلومات"}`,
+      });
       return { success: true };
     }),
 });

@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `withdrawals` ADD `fee` decimal(20,8) DEFAULT '0' NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 35MzfD3VDdNZPdx.root --database Usye7W6HWLFfKwjgEx4LFX --execute ALTER TABLE `withdrawals` ADD `fee` decimal(20,8) DEFAULT '0' NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 472
+}

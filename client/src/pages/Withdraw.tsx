@@ -3,9 +3,10 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
-import { Copy, CheckCircle, Clock, XCircle, AlertCircle, QrCode, ArrowRight } from "lucide-react";
+import { Copy, CheckCircle, Clock, XCircle, AlertCircle, QrCode, ArrowRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QRCodeSVG as QRCode } from "qrcode.react";
+import { WithdrawalReceipt } from "@/components/WithdrawalReceipt";
 
 const statusConfig = {
   pending: { label: "قيد المراجعة", icon: Clock, color: "text-yellow-400", bg: "bg-yellow-400/10" },
@@ -20,6 +21,7 @@ export default function Withdraw() {
   const [address, setAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [showQR, setShowQR] = useState(false);
+  const [expandedReceipt, setExpandedReceipt] = useState<number | null>(null);
 
   const { data: wallet } = trpc.wallet.getMyWallet.useQuery(undefined, { enabled: isAuthenticated });
   const { data: withdrawals, refetch } = trpc.withdrawals.myWithdrawals.useQuery(undefined, { enabled: isAuthenticated });
@@ -145,21 +147,34 @@ export default function Withdraw() {
       {withdrawals && withdrawals.length > 0 && (
         <div>
           <h3 className="font-semibold mb-3">سجل الطلبات</h3>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {withdrawals.map(w => {
               const config = statusConfig[w.status];
               const Icon = config.icon;
+              const isExpanded = expandedReceipt === w.id;
               return (
-                <div key={w.id} className="flex items-center gap-3 bg-card rounded-2xl p-3 border border-border">
-                  <div className={cn("p-2.5 rounded-xl", config.bg)}>
-                    <Icon size={16} className={config.color} />
-                  </div>
-                  <div className="flex-1 text-right">
-                    <p className="font-semibold text-sm">${parseFloat(w.amount).toLocaleString("en", { minimumFractionDigits: 2 })} USDT</p>
-                    <p className="text-xs text-muted-foreground">{w.network} • {new Date(w.createdAt).toLocaleDateString("ar-SA")}</p>
-                    {w.adminNote && <p className="text-xs text-muted-foreground">{w.adminNote}</p>}
-                  </div>
-                  <span className={cn("text-xs font-semibold", config.color)}>{config.label}</span>
+                <div key={w.id}>
+                  <button
+                    onClick={() => setExpandedReceipt(isExpanded ? null : w.id)}
+                    className="w-full flex items-center gap-3 bg-card rounded-2xl p-3 border border-border hover:border-primary/30 transition-colors"
+                  >
+                    <div className={cn("p-2.5 rounded-xl", config.bg)}>
+                      <Icon size={16} className={config.color} />
+                    </div>
+                    <div className="flex-1 text-right">
+                      <p className="font-semibold text-sm">${parseFloat(w.amount).toLocaleString("en", { minimumFractionDigits: 2 })} USDT</p>
+                      <p className="text-xs text-muted-foreground">{w.network} • {new Date(w.createdAt).toLocaleDateString("ar-SA")}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-xs font-semibold", config.color)}>{config.label}</span>
+                      <ChevronDown size={16} className={cn("transition-transform", isExpanded && "rotate-180")} />
+                    </div>
+                  </button>
+                  {isExpanded && user && (
+                    <div className="mt-3">
+                      <WithdrawalReceipt withdrawal={w} userInfo={user} />
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -118,6 +118,7 @@ export const withdrawals = mysqlTable("withdrawals", {
   network: mysqlEnum("network", ["TRC20", "ERC20"]).notNull(),
   address: varchar("address", { length: 128 }).notNull(),
   amount: decimal("amount", { precision: 20, scale: 8 }).notNull(),
+  fee: decimal("fee", { precision: 20, scale: 8 }).default("0").notNull(),
   status: mysqlEnum("status", ["pending", "approved", "rejected", "completed"]).default("pending").notNull(),
   txHash: varchar("txHash", { length: 128 }),
   adminNote: text("adminNote"),
