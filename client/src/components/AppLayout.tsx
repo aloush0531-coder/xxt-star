@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Home, BarChart2, TrendingUp, Wallet, User, ShieldCheck, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getLoginUrl } from "@/const";
-import { InstallAppButton } from "./InstallAppButton";
+import { DownloadButton } from "./DownloadButton";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -38,7 +38,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <span className="font-bold text-primary text-lg tracking-wide">xxt Star</span>
         </div>
         <div className="flex items-center gap-2">
-          <InstallAppButton />
+          <DownloadButton />
           {user?.role === "admin" && (
             <button
               onClick={() => navigate("/admin")}
