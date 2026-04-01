@@ -54,8 +54,11 @@ export function CandlestickChart({ symbol, interval = "1h" }: CandlestickChartPr
         const newCandles = [...prevCandles];
         const lastCandle = newCandles[newCandles.length - 1];
 
-        // محاكاة حركة السعر العشوائية
-        const priceChange = (Math.random() - 0.5) * 100;
+        // محاكاة حركة السعر العشوائية مع اتجاه واضح
+        // 60% احتمالية صعود، 40% احتمالية هبوط
+        const direction = Math.random() < 0.6 ? 1 : -1;
+        const magnitude = Math.random() * 150; // حركة أكبر
+        const priceChange = direction * magnitude;
         const newPrice = Math.max(priceRef.current + priceChange, 60000);
         priceRef.current = newPrice;
 
@@ -67,12 +70,17 @@ export function CandlestickChart({ symbol, interval = "1h" }: CandlestickChartPr
         // إذا مرت دقيقة كاملة، أضف شمعة جديدة
         const now = Date.now();
         if (now - lastCandle.time > 60000) {
+          // الشمعة الجديدة تبدأ من سعر الإغلاق السابق
+          const newOpen = newPrice;
+          const trend = Math.random() < 0.6 ? 1 : -1; // اتجاه الشمعة الجديدة
+          const newClose = newOpen + trend * Math.random() * 300;
+          
           newCandles.push({
             time: now,
-            open: newPrice,
-            high: newPrice + Math.random() * 200,
-            low: newPrice - Math.random() * 200,
-            close: newPrice + (Math.random() - 0.5) * 100,
+            open: newOpen,
+            high: Math.max(newOpen, newClose) + Math.random() * 200,
+            low: Math.min(newOpen, newClose) - Math.random() * 200,
+            close: newClose,
           });
 
           // احتفظ بـ 50 شمعة فقط
