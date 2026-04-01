@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">xxt Star</string>
+    <string name="title_activity_main">xxt Star</string>
+    <string name="package_name">com.xxtstar.app</string>
+    <string name="custom_url_scheme">com.xxtstar.app</string>
+</resources>
