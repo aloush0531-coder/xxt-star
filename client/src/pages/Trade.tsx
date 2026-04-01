@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CandlestickChart } from "@/components/CandlestickChart";
 
 export default function Trade() {
   const params = useParams<{ coinId?: string }>();
@@ -134,6 +135,14 @@ export default function Trade() {
               <p className="font-semibold text-sm text-danger">${selectedCoin.low_24h.toLocaleString("en")}</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Candlestick Chart */}
+      {selectedCoin && (
+        <div className="bg-card rounded-2xl p-4 border border-border overflow-hidden">
+          <h3 className="text-sm font-semibold mb-4 text-foreground">الرسم البياني</h3>
+          <CandlestickChart symbol={selectedCoin.symbol} interval="1h" />
         </div>
       )}
 
