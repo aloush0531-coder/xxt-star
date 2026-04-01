@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface Candle {
   time: number;
@@ -16,38 +16,77 @@ interface CandlestickChartProps {
 export function CandlestickChart({ symbol, interval = "1h" }: CandlestickChartProps) {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(true);
+  const priceRef = useRef(67000);
 
   useEffect(() => {
-    const fetchCandles = async () => {
-      try {
-        setLoading(true);
-        // محاكاة بيانات الشموع - في الإنتاج ستأتي من API حقيقي
-        const mockCandles: Candle[] = Array.from({ length: 50 }, (_, i) => {
-          const basePrice = 67000;
-          const volatility = Math.sin(i * 0.5) * 500;
-          const randomWalk = Math.random() * 1000 - 500;
-          const price = basePrice + volatility + randomWalk;
-          
-          return {
-            time: Date.now() - (50 - i) * 3600000,
-            open: price - Math.random() * 200,
-            high: price + Math.random() * 300,
-            low: price - Math.random() * 300,
-            close: price + Math.random() * 200,
-          };
-        });
-        setCandles(mockCandles);
-      } catch (error) {
-        console.error("Failed to fetch candles:", error);
-      } finally {
-        setLoading(false);
-      }
+    // إنشاء الشموع الأولية
+    const initializeCandles = () => {
+      const initialCandles: Candle[] = Array.from({ length: 50 }, (_, i) => {
+        const basePrice = 67000;
+        const volatility = Math.sin(i * 0.5) * 500;
+        const randomWalk = Math.random() * 1000 - 500;
+        const price = basePrice + volatility + randomWalk;
+        
+        return {
+          time: Date.now() - (50 - i) * 60000,
+          open: price - Math.random() * 200,
+          high: price + Math.random() * 300,
+          low: price - Math.random() * 300,
+          close: price + Math.random() * 200,
+        };
+      });
+      setCandles(initialCandles);
+      priceRef.current = initialCandles[initialCandles.length - 1].close;
+      setLoading(false);
     };
 
-    fetchCandles();
-    const updateInterval = setInterval(fetchCandles, 60000); // تحديث كل دقيقة
-    return () => clearInterval(updateInterval);
-  }, [symbol, interval]);
+    initializeCandles();
+  }, []);
+
+  // تحديث الشموع كل ثانية
+  useEffect(() => {
+    if (loading) return;
+
+    const interval = setInterval(() => {
+      setCandles(prevCandles => {
+        if (prevCandles.length === 0) return prevCandles;
+
+        const newCandles = [...prevCandles];
+        const lastCandle = newCandles[newCandles.length - 1];
+
+        // محاكاة حركة السعر العشوائية
+        const priceChange = (Math.random() - 0.5) * 100;
+        const newPrice = Math.max(priceRef.current + priceChange, 60000);
+        priceRef.current = newPrice;
+
+        // تحديث الشمعة الأخيرة
+        lastCandle.high = Math.max(lastCandle.high, newPrice);
+        lastCandle.low = Math.min(lastCandle.low, newPrice);
+        lastCandle.close = newPrice;
+
+        // إذا مرت دقيقة كاملة، أضف شمعة جديدة
+        const now = Date.now();
+        if (now - lastCandle.time > 60000) {
+          newCandles.push({
+            time: now,
+            open: newPrice,
+            high: newPrice + Math.random() * 200,
+            low: newPrice - Math.random() * 200,
+            close: newPrice + (Math.random() - 0.5) * 100,
+          });
+
+          // احتفظ بـ 50 شمعة فقط
+          if (newCandles.length > 50) {
+            newCandles.shift();
+          }
+        }
+
+        return newCandles;
+      });
+    }, 1000); // تحديث كل ثانية
+
+    return () => clearInterval(interval);
+  }, [loading]);
 
   if (loading) {
     return (
@@ -69,7 +108,7 @@ export function CandlestickChart({ symbol, interval = "1h" }: CandlestickChartPr
   const prices = candles.flatMap(c => [c.high, c.low]);
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
-  const priceRange = maxPrice - minPrice;
+  const priceRange = maxPrice - minPrice || 1;
 
   // أبعاد الرسم البياني
   const width = 800;
@@ -115,7 +154,7 @@ export function CandlestickChart({ symbol, interval = "1h" }: CandlestickChartPr
           return (
             <g key={`candle-${index}`}>
               {/* الخط العلوي والسفلي (الفتيل) */}
-              <line x1={x} y1={highY} x2={x} y2={lowY} stroke={color} strokeWidth="1" />
+              <line x1={x} y1={highY} x2={x} y2={lowY} stroke={color} strokeWidth="1" opacity="0.6" />
               
               {/* جسم الشمعة */}
               <rect
@@ -124,7 +163,7 @@ export function CandlestickChart({ symbol, interval = "1h" }: CandlestickChartPr
                 width={candleWidth}
                 height={bodyHeight}
                 fill={color}
-                opacity="0.8"
+                opacity="0.9"
               />
             </g>
           );
@@ -135,8 +174,9 @@ export function CandlestickChart({ symbol, interval = "1h" }: CandlestickChartPr
         <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#666" strokeWidth="2" />
       </svg>
 
-      {/* معلومات الفترة الزمنية */}
-      <div className="mt-4 text-center text-sm text-gray-400">
+      {/* معلومات الفترة الزمنية والسعر الحالي */}
+      <div className="mt-4 flex justify-between items-center text-sm text-gray-400">
+        <p>السعر الحالي: <span className="text-primary font-semibold">${priceRef.current.toFixed(2)}</span></p>
         <p>آخر تحديث: {new Date().toLocaleTimeString('ar-SA')}</p>
       </div>
     </div>
