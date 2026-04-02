@@ -49,10 +49,12 @@ export async function setupVite(app: Express, server: Server) {
 
 export function serveStatic(app: Express) {
   // In production, files are built to dist/public
-  // When bundled with esbuild, __dirname points to dist directory
-  const distPath = path.resolve(import.meta.dirname, "../public");
+  // Use process.cwd() to get the actual working directory
+  const distPath = path.resolve(process.cwd(), "dist/public");
   
   console.log(`Serving static files from: ${distPath}`);
+  console.log(`Current working directory: ${process.cwd()}`);
+  console.log(`Directory exists: ${fs.existsSync(distPath)}`);
   
   if (!fs.existsSync(distPath)) {
     console.error(
