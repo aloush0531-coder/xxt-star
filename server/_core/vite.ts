@@ -49,7 +49,8 @@ export async function setupVite(app: Express, server: Server) {
 
 export function serveStatic(app: Express) {
   // In production, files are built to dist/public
-  const distPath = path.resolve(import.meta.dirname, "../../public");
+  // When bundled with esbuild, __dirname points to dist directory
+  const distPath = path.resolve(import.meta.dirname, "../public");
   
   console.log(`Serving static files from: ${distPath}`);
   
